@@ -15,6 +15,7 @@ use clap::{Arg, Command};
 use log::{error, info, warn};
 use std::sync::{Arc, RwLock};
 use std::time::Duration;
+use tokio::signal::unix::{signal, SignalKind};
 
 #[tokio::main]
 async fn main() {
@@ -79,27 +80,49 @@ async fn main() {
         }
     };
     let asns_arc = Arc::new(RwLock::new(Arc::new(asns)));
-
+    let db_task;
     // Only start the refresh task if refresh_delay > 0
     if refresh_delay > 0 {
         let asns_arc_t = asns_arc.clone();
         let db_url_t = db_url.clone();
         let http_client_t = http_client.clone();
-        tokio::spawn(async move {
+        db_task = Some(tokio::spawn(async move {
             loop {
                 tokio::time::sleep(Duration::from_secs(refresh_delay * 60)).await;
                 update_asns(&asns_arc_t, &db_url_t, http_client_t.as_ref()).await;
             }
-        });
+        }));
         info!(
             "Automatic database refresh enabled (every {} minutes)",
             refresh_delay
         );
     } else {
         info!("Automatic database refresh disabled");
+        db_task = None
     }
+    let web_handle = tokio::spawn(async move {
+        info!("Listening on {}", listen_addr);
+        WebService::start(asns_arc, &listen_addr).await;
+    });
 
-    WebService::start(asns_arc, listen_addr).await;
+    let mut term_stream = signal(SignalKind::terminate()).expect("Failed to listen for SIGTERM");
+    let mut int_stream = signal(SignalKind::interrupt()).expect("Failed to listen for SIGINT");
+    tokio::select! {
+        _ = int_stream.recv() => {
+            match db_task {
+                Some(handle) => handle.abort(),
+                _ => {}
+            }
+            web_handle.abort();
+        },
+        _ = term_stream.recv() => {
+            match db_task {
+                Some(handle) => handle.abort(),
+                _ => {}
+            }
+            web_handle.abort();
+        },
+    }
 }
 
 async fn get_asns(
