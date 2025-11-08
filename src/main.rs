@@ -101,7 +101,6 @@ async fn main() {
         db_task = None
     }
     let web_handle = tokio::spawn(async move {
-        info!("Listening on {}", listen_addr);
         WebService::start(asns_arc, &listen_addr).await;
     });
 

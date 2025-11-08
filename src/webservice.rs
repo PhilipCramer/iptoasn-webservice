@@ -39,7 +39,6 @@ struct IpLookupResponse {
     as_description: Option<String>,
 }
 
-
 impl IpLookupResponse {
     fn not_found(ip: String) -> Self {
         Self {
@@ -267,7 +266,7 @@ impl WebService {
         };
 
         log::info!("webservice ready");
-
+        log::info!("Listening on {}", listen_addr);
         loop {
             let (tcp, remote_addr) = match listener.accept().await {
                 Ok(conn) => conn,
