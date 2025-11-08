@@ -51,9 +51,16 @@ async fn main() {
         )
         .get_matches();
 
-    let db_url = matches.get_one::<String>("db_url").unwrap();
-    let listen_addr = matches.get_one::<String>("listen_addr").unwrap();
-    let refresh_delay = *matches.get_one::<u64>("refresh_delay").unwrap();
+    let db_url = matches
+        .get_one::<String>("db_url")
+        .expect("URL for DB file should be set");
+    let listen_addr = matches
+        .get_one::<String>("listen_addr")
+        .expect("Listen address should be specified")
+        .clone();
+    let refresh_delay = *matches
+        .get_one::<u64>("refresh_delay")
+        .expect("Refresh interval should be set");
 
     // Create HTTP client once if URL is HTTP/HTTPS
     let http_client = if db_url.starts_with("http://") || db_url.starts_with("https://") {
