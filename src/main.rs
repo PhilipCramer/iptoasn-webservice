@@ -66,6 +66,7 @@ async fn main() {
     let http_client = if db_url.starts_with("http://") || db_url.starts_with("https://") {
         Some(reqwest::Client::new())
     } else {
+        error!("Unsuported format for database url. Use http:// or https://");
         None
     };
 
